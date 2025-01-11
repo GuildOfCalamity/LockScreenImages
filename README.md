@@ -15,8 +15,9 @@
 * Reworked/Enhanced the original version to be bug free and have new features.
     - Added acrylic/glass support via [DWM](https://learn.microsoft.com/en-us/windows/win32/dwm/dwm-overview)
     - Added custom dialogs and context menus (the default `MessageBox` had to go)
-    - Added new features
+    - Added new features and dark mode theme
     - Added helper extensions for routines
+    - Added customer renderer for the ToolStrip
     - Fixed minor bugs/annoyances
 
 ## Overview
