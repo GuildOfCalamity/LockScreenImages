@@ -18,6 +18,7 @@
     - Added new features and dark mode theme
     - Added helper extensions for routines
     - Added customer renderer for the ToolStrip
+    - Added application settings saving/loading
     - Fixed minor bugs/annoyances
 
 ## Overview
