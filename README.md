@@ -17,7 +17,7 @@
     - Added custom dialogs and context menus (the default `MessageBox` had to go)
     - Added new features and dark mode theme
     - Added helper extensions for routines
-    - Added customer renderer for the ToolStrip
+    - Added custom renderer for the ToolStrip
     - Added application settings saving/loading
     - Fixed minor bugs/annoyances
 
