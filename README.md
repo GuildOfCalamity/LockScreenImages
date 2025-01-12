@@ -10,7 +10,7 @@
 | ---- | ---- |
 | NET Core | 6.0 |
 
-### 📝 v2.0.0.0 - January 2025
+## 📝 v2.0.0.0 - January 2025
 
 * Reworked/Enhanced the original version to be bug free and have new features.
     - Added acrylic/glass support via [DWM](https://learn.microsoft.com/en-us/windows/win32/dwm/dwm-overview)
@@ -21,11 +21,11 @@
     - Added application settings saving/loading
     - Fixed minor bugs/annoyances
 
-## Overview
+## 📖 Overview
 
 The Windows Lock Screen Images Viewer is a simple application that allows you to easily view and navigate to the directory containing the Windows lock screen images. It provides a user-friendly interface to explore the images and save them in a custom directory.
 
-## Features
+## 🎛️ Features
 
 - **Image preview:** View an image by clicking on a list item or using the up/down arrows on your keyboard.
   
