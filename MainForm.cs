@@ -234,7 +234,7 @@ public partial class MainForm : Form
                 Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, copyFolderName));
                 foreach (var file in this.assets)
                 {
-                    currentFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, copyFolderName, $"{file.Name}{(file.FullName.IsJPG() ? ".jpg" : ".png")}");
+                    currentFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, copyFolderName, $"{file.Name}.{(file.FullName.DetermineType())}");
                     File.Copy(file.FullName, currentFile, true);
                     ((ToolStripStatusLabel)statusStrip.Items[0]).Text = $"✔️ Copied {file.Name}";
                 }
@@ -387,7 +387,7 @@ public partial class MainForm : Form
         {
             var metaItem = listBox.Items[listBox.SelectedIndex] as ListBoxMetaItem;
             if (metaItem == null) { return; }
-            MessageForm.Show($"Name: {metaItem.Info?.Name.Truncate(32)}\r\nLastWrite: {metaItem.Info?.LastWriteTime}\r\nSize: {metaItem.Info?.Length.HumanReadableSize()}\r\nIs JPEG: {metaItem.Info?.FullName.IsJPG()}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(9));
+            MessageForm.Show($"Name: {metaItem.Info?.Name.Truncate(32)}\r\nLastWrite: {metaItem.Info?.LastWriteTime}\r\nSize: {metaItem.Info?.Length.HumanReadableSize()}\r\nImage type: {metaItem.Info?.FullName.DetermineType()}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(9));
         }
         else
         {
@@ -512,7 +512,7 @@ public partial class MainForm : Form
         {
             var metaItem = listBox.Items[listBox.SelectedIndex] as ListBoxMetaItem;
             if (metaItem == null) { return; }
-            MessageForm.Show($"Name: {metaItem.Info?.Name.Truncate(32)}\r\nLastWrite: {metaItem.Info?.LastWriteTime}\r\nSize: {metaItem.Info?.Length.HumanReadableSize()}\r\nIs JPEG: {metaItem.Info?.FullName.IsJPG()}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(9));
+            MessageForm.Show($"Name: {metaItem.Info?.Name.Truncate(32)}\r\nLastWrite: {metaItem.Info?.LastWriteTime}\r\nSize: {metaItem.Info?.Length.HumanReadableSize()}\r\nImage type: {metaItem.Info?.FullName.DetermineType()}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(9));
         }
         else if (cea.ItemText.Contains("delete", StringComparison.OrdinalIgnoreCase) && listBox.SelectedItem != null && listBox.SelectedIndex >= 0)
         {

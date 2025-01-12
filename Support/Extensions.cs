@@ -75,44 +75,112 @@ public static class Extensions
         return $"{length}{mu[0]}";
     }
 
-    public static bool IsJPG(this string filePath, bool dumpHeader = false)
+    /// <summary>
+    /// Determines the type of an image file by inspecting its header.
+    /// </summary>
+    /// <param name="filePath">Path to the image file.</param>
+    /// <returns>The type of the image (e.g., "jpg", "png", "gif", etc.) or "Unknown" if not recognized.</returns>
+    public static string DetermineType(this string imageFilePath, bool dumpHeader = false)
     {
+        if (!File.Exists(imageFilePath)) { return string.Empty; }
+
         try
         {
-            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            using (var stream = new FileStream(imageFilePath, FileMode.Open, FileAccess.Read))
             {
-                using (FileStream fsStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new BinaryReader(stream))
                 {
-                    using (BinaryReader brReader = new BinaryReader(fsStream, System.Text.Encoding.Default))
+                    byte[] header = reader.ReadBytes(16);
+
+                    if (dumpHeader)
                     {
-                        //fsStream.Seek(0x06, SeekOrigin.Begin);
-                        var sample = brReader.ReadBytes(16);
-                        if (dumpHeader)
+                        Debug.WriteLine($"[IMAGE HEADER]");
+                        foreach (var b in header)
                         {
-                            Debug.WriteLine($"[IMAGE HEADER]");
-                            foreach (var b in sample)
-                            {
-                                if (b > 31)
-                                    Debug.Write($"{(char)b}");
-                            }
-                            Debug.WriteLine($"");
+                            if (b > 31)
+                                Debug.Write($"{(char)b}");
                         }
-                        if (sample[6] == 'E' && (sample[7] == 'x' || sample[7] == 'X') && (sample[8] == 'i' || sample[8] == 'I') && (sample[9] == 'f' || sample[7] == 'F'))
-                            return true;
-                        else if (sample[6] == 'J' && (sample[7] == 'F' || sample[7] == 'f') && (sample[8] == 'I' || sample[8] == 'i') && (sample[9] == 'F' || sample[9] == 'f'))
-                            return true;
-                        else if (sample[6] == 'J' && (sample[7] == 'P' || sample[7] == 'p') && (sample[8] == 'E' || sample[8] == 'e') && (sample[9] == 'G' || sample[9] == 'g'))
-                            return true;
-                        else if (sample[6] == 'J' && (sample[7] == 'P' || sample[7] == 'p') && (sample[8] == 'G' || sample[8] == 'g'))
-                            return true;
-                        else if (sample[0] == 'P' && sample[1] == 'N' && sample[2] == 'G')
-                            return false;
+                        Debug.WriteLine($"");
                     }
+                    // Check for JPEG signature (bytes 6-9 should be 'J', 'F', 'I', 'F' or 'E' 'x' 'i' 'f')
+                    if (header.Length >= 10 &&
+                        header[6] == 'J' && header[7] == 'F' && header[8] == 'I' && header[9] == 'F')
+                    {
+                        return "jpg";
+                    }
+                    if (header.Length >= 9 && 
+                        header[6] == 'E' && 
+                       (header[7] == 'x' || header[7] == 'X') && 
+                       (header[8] == 'i' || header[8] == 'I') && 
+                       (header[9] == 'f' || header[7] == 'F'))
+                    {
+                        return "jpg";
+                    }
+                    if (header.Length >= 9 && 
+                        header[6] == 'J' && 
+                       (header[7] == 'P' || header[7] == 'p') && 
+                       (header[8] == 'E' || header[8] == 'e') && 
+                       (header[9] == 'G' || header[9] == 'g'))
+                    {
+                        return "jpg";
+                    }
+                    // Check for PNG signature (bytes 0-7: 89 50 4E 47 0D 0A 1A 0A)
+                    if (header.Length >= 8 &&
+                        header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E &&
+                        header[3] == 0x47 && header[4] == 0x0D && header[5] == 0x0A &&
+                        header[6] == 0x1A && header[7] == 0x0A)
+                    {
+                        return "png";
+                    }
+                    // Check for GIF signature (bytes 0-2: "GIF")
+                    if (header.Length >= 6 &&
+                        header[0] == 'G' && header[1] == 'I' && header[2] == 'F')
+                    {
+                        return "gif";
+                    }
+                    // Check for BMP signature (bytes 0-1: "BM")
+                    if (header.Length >= 2 &&
+                        header[0] == 'B' && header[1] == 'M')
+                    {
+                        return "bmp";
+                    }
+                    // Check for TIFF signature (bytes 0-3: "II*" or "MM*")
+                    if (header.Length >= 4 &&
+                        ((header[0] == 'I' && header[1] == 'I' && header[2] == 0x2A && header[3] == 0x00) ||
+                         (header[0] == 'M' && header[1] == 'M' && header[2] == 0x00 && header[3] == 0x2A)))
+                    {
+                        return "tiff";
+                    }
+                    // Check for WebP signature (bytes 0-3: "RIFF", bytes 8-11: "WEBP")
+                    if (header.Length >= 12 &&
+                        header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F' &&
+                        header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P')
+                    {
+                        return "webp";
+                    }
+                    // Check for HEIC/HEIF signature (bytes 4-11: "ftypheic" or "ftypheif")
+                    if (header.Length >= 12 &&
+                        header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p' &&
+                       (header[8] == 'h' && header[9] == 'e' && header[10] == 'i' && header[11] == 'c'))
+                    {
+                        return "heic";
+                    }
+                    if (header.Length >= 12 &&
+                        header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p' &&
+                       (header[8] == 'h' && header[9] == 'e' && header[10] == 'i' && header[11] == 'f'))
+                    {
+                        return "heif";
+                    }
+                    // Signature not defined
+                    return "Unknown"; 
                 }
             }
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ERROR] DetermineImageType: {ex.Message}");
+        }
 
-        return false;
+        return string.Empty;
     }
 }
