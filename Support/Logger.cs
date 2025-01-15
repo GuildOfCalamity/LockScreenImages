@@ -36,11 +36,7 @@ public class Logger
     #region [Public Props]
     public static string CurrentFilePath
     {
-        get
-        {
-            string path = Path.Combine(CurrentLogDirectory, DateTime.Now.Date.ToString("dd") + ".log");
-            return path;
-        }
+        get => Path.Combine(CurrentLogDirectory, DateTime.Now.Date.ToString("dd") + ".log");
     }
 
     public static string CurrentLogDirectory
@@ -49,13 +45,11 @@ public class Logger
         {
             if (string.IsNullOrEmpty(basepath))
             {
-                System.IO.DriveInfo[] info = System.IO.DriveInfo.GetDrives();
-
+                DriveInfo[] info = DriveInfo.GetDrives();
                 if (info.Any(i => i.DriveType == DriveType.Fixed && i.IsReady == true && i.Name == @"D:\"))
                     basepath = @"D:\";
                 else
                     basepath = @"C:\";
-
                 basepath += Path.Combine("Logs", defaultComp);
                 Directory.CreateDirectory(basepath);
             }
@@ -67,22 +61,24 @@ public class Logger
     #region [Public Methods]
     public static void Write(string applicationName, eLogLevel level, string message)
     {
+        if (string.IsNullOrEmpty(message))
+            return;
+
         if (string.IsNullOrEmpty(applicationName))
             applicationName = AppDomain.CurrentDomain.FriendlyName;
-        string realMessage = message;
-        string clientToLogFile = applicationName.PadRight(10).Substring(0, 10);
+        
         string logString = "";
-
-        //string formatString = "{0} {1:yyyy-MM-dd HH:mm:ss.fff} {2} {3} {4} {5}";
         string formatString = "{0:[yyyy-MM-dd hh:mm:ss.fff tt]} {1} {2} {3}";
-        object[] objArray = { DateTime.Now, clientToLogFile, level.ToString("G").PadRight(levelMaxLength), realMessage };
+        string clientToLogFile = applicationName.PadRight(10).Substring(0, 10);
+        object[] objArray = { DateTime.Now, clientToLogFile, level.ToString("G").PadRight(levelMaxLength), message };
+        
         try
         {
             logString = String.Format(formatString, objArray);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Logger.Write: {ex.Message}");
+            Debug.WriteLine($"[ERROR] Logger.Write: {ex.Message}");
         }
 
         if (level == eLogLevel.Debug)
@@ -113,10 +109,9 @@ public class Logger
                 }
             }
 
-            string path = "";
             lock (fileLock)
             {
-                path = $@"{logDrive}\{compType}\{DateTime.Now.Year.ToString("0000")}\{DateTime.Now.Month.ToString("00")}-{DateTime.Now.Date.ToString("MMMM")}\";
+                string path = $@"{logDrive}\{compType}\{DateTime.Now.Year.ToString("0000")}\{DateTime.Now.Month.ToString("00")}-{DateTime.Now.Date.ToString("MMMM")}\";
                 DirectoryInfo? dInfo = new DirectoryInfo(path);
                 if (dInfo != null && !dInfo.Exists)
                     dInfo.Create();
@@ -133,14 +128,9 @@ public class Logger
                 using (StreamWriter writer = new StreamWriter(path, true))
                 {
                     if (insertTimeStamp)
-                    {
-                        string value = $"[{DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss.fff tt")}] {message}";
-                        writer.WriteLine(value);
-                    }
+                        writer.WriteLine($"[{DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss.fff tt")}] {message}");
                     else
-                    {
                         writer.WriteLine(message);
-                    }
                 }
             }
             return true;
@@ -154,7 +144,9 @@ public class Logger
 
     static void CreateNewFile(string fullPath)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+        var tmp = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(tmp))
+            Directory.CreateDirectory(tmp);
         File.Create(fullPath).Close();
         Write(defaultComp, eLogLevel.Information, $"-------------Created New Log File For v{Program.GetCurrentAssemblyVersion()}--------------");
         try { ThreadPool.QueueUserWorkItem(PurgeLogs); }
@@ -167,7 +159,7 @@ public class Logger
         {
             if (string.IsNullOrEmpty(basepath))
             {
-                string temp = CurrentLogDirectory;
+                string temp = CurrentLogDirectory; // do not remove this line
             }
             CleanUpLogFiles(basepath, 365);
         }
@@ -182,9 +174,9 @@ public class Logger
         if (!Directory.Exists(pathToDeleteFrom))
             return;
 
-        Write(defaultComp, eLogLevel.Information, $"Purging first 50K logs older than {maxNumberOfDays} days.");
+        Write(defaultComp, eLogLevel.Information, $"Purging logs older than {maxNumberOfDays} days.");
         string[] logFiles = Directory.GetFiles(pathToDeleteFrom, "*.log", SearchOption.AllDirectories);
-        IEnumerable<string> topFiles = logFiles.OrderBy(files => files).Take(50000); //only remove 50K files per check
+        IEnumerable<string> topFiles = logFiles.OrderBy(files => files).Take(5000); //only remove 5K files per check
         string lastFilePath = "";
         foreach (string fn in topFiles)
         {

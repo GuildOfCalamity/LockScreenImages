@@ -31,6 +31,22 @@ public sealed class AppSettingsManager
     #endregion
 
     #region [Public Properties]
+    public static string Version { get => VERSION; }
+    public static double WindowWidth { get => Settings.windowWidth; set => Settings.windowWidth = value; }
+    public static double WindowHeight { get => Settings.windowHeight; set => Settings.windowHeight = value; }
+    public static double WindowTop { get => Settings.windowTop; set => Settings.windowTop = value; }
+    public static double WindowLeft { get => Settings.windowLeft; set => Settings.windowLeft = value; }
+    public static int WindowState { get => Settings.windowState; set => Settings.windowState = value; }
+    public static int WindowsDPI { get => Settings.windowsDPI; set => Settings.windowsDPI = value; }
+    public static bool FirstRun { get => Settings.firstRun; set => Settings.firstRun = value; }
+    public static bool DebugMode { get => Settings.debugMode; set => Settings.debugMode = value; }
+    public static string Theme { get => Settings.theme; set => Settings.theme = value; }
+    public static string StartupPosition { get => Settings.startupPosition; set => Settings.startupPosition = value; }
+    public static DateTime LastUse { get => Settings.lastUse; set => Settings.lastUse = value; }
+    public static int InactivityTimeout { get => Settings.inactivityTimeout; set => Settings.inactivityTimeout = value; }
+    public static int LastCount { get => Settings.lastCount; set => Settings.lastCount = value; }
+    public static bool GlassWindow { get => Settings.glassWindow; set => Settings.glassWindow = value; }
+    
     /// <summary>
     /// Static reference to this class.
     /// </summary>
@@ -50,25 +66,11 @@ public sealed class AppSettingsManager
             return _Settings;
         }
     }
+
     public static string Location
     {
         get => Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location ?? AppDomain.CurrentDomain.BaseDirectory), $"{Assembly.GetExecutingAssembly().GetName().Name}{EXTENSION}");
     }
-    public static string Version { get => VERSION; }
-    public static double WindowWidth { get => Settings.windowWidth; set => Settings.windowWidth = value; }
-    public static double WindowHeight { get => Settings.windowHeight; set => Settings.windowHeight = value; }
-    public static double WindowTop { get => Settings.windowTop; set => Settings.windowTop = value; }
-    public static double WindowLeft { get => Settings.windowLeft; set => Settings.windowLeft = value; }
-    public static int WindowState { get => Settings.windowState; set => Settings.windowState = value; }
-    public static int WindowsDPI { get => Settings.windowsDPI; set => Settings.windowsDPI = value; }
-    public static bool FirstRun { get => Settings.firstRun; set => Settings.firstRun = value; }
-    public static bool DebugMode { get => Settings.debugMode; set => Settings.debugMode = value; }
-    public static string Theme { get => Settings.theme; set => Settings.theme = value; }
-    public static string StartupPosition { get => Settings.startupPosition; set => Settings.startupPosition = value; }
-    public static DateTime LastUse { get => Settings.lastUse; set => Settings.lastUse = value; }
-    public static int InactivityTimeout { get => Settings.inactivityTimeout; set => Settings.inactivityTimeout = value; }
-    public static int LastCount { get => Settings.lastCount; set => Settings.lastCount = value; }
-    public static bool GlassWindow { get => Settings.glassWindow; set => Settings.glassWindow = value; }
     #endregion
 
     #region [I/O Methods]

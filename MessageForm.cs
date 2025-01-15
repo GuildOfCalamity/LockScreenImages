@@ -247,7 +247,7 @@ public partial class MessageForm : Form
     FormBorderStyle borderStyle = FormBorderStyle.FixedToolWindow;
     Point iconLocus = new Point(16, 62);
     Size iconSize = new Size(48, 48);
-    Size mainFormSize = new Size(510, 210);
+    Size mainFormSize = new Size(530, 210);
     Padding withIconPadding = new Padding(75, 10, 20, 10);
     Padding withoutIconPadding = new Padding(15);
     Color clrForeText = Color.White;

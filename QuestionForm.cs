@@ -214,7 +214,7 @@ public partial class QuestionForm : Form
     FormBorderStyle borderStyle = FormBorderStyle.FixedToolWindow;
     Point iconLocus = new Point(16, 62);
     Size iconSize = new Size(48, 48);
-    Size mainFormSize = new Size(510, 210);
+    Size mainFormSize = new Size(530, 210);
     Padding withIconPadding = new Padding(75, 10, 20, 10);
     Padding withoutIconPadding = new Padding(15);
     Color clrForeText = Color.White;
@@ -228,7 +228,7 @@ public partial class QuestionForm : Form
 
     #region [RFU]
     /// <summary>
-    /// Occurs when the user inputs data.
+    /// Occurs when the user inputs data into a <see cref="TextBox"/>.
     /// </summary>
     public event EventHandler? DataReceived;
 

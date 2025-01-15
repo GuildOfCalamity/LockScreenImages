@@ -4,6 +4,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.IO.Compression;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
@@ -31,6 +32,7 @@ public partial class MainForm : Form
     string copyFolderName = "ImageCopy";
     List<ListBoxMetaItem?> deferredRemovals = new();
     bool win7TitleBar = false;
+    static Profile? profile;
 
     public MainForm()
     {
@@ -38,12 +40,12 @@ public partial class MainForm : Form
 
         appLogo = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico"));
         imgBkgnd = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Background.png"));
-        imgArrow = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "IconOrb8.png"));
+        imgArrow = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "IconOrb5.png"));
         this.StartPosition = FormStartPosition.CenterScreen;
         this.Icon = appLogo.ToIcon(); // -or- this.Icon = new Icon(AppDomain.CurrentDomain.BaseDirectory +  @"\AppIcon.ico");
-        this.assets = GetContentDeliveryAssets();
         this.Load += OnFormLoad;
         this.FormClosing += OnFormClosing;
+        this.assets = GetContentDeliveryAssets();
         Application.ApplicationExit += OnApplicationExit;
 
         if (!this.assets.Any())
@@ -125,6 +127,7 @@ public partial class MainForm : Form
         popupMenu = new CustomPopupMenu(new Dictionary<string, Image>
         {
             { "Show file info", imgArrow },
+            { "Make desktop background", imgArrow },
             { "App setting count", imgArrow },
             { "Delete on exit", imgArrow },
         }, new Font("Calibri", 12));
@@ -441,6 +444,19 @@ public partial class MainForm : Form
 
             Debug.WriteLine($"[INFO] Last asset count was {AppSettingsManager.LastCount}.");
             #endregion
+
+            #region [Profile Encryption Test]
+            //profile = new Serializer().Load(Path.Combine(Environment.CurrentDirectory, "profile.json"));
+            //if (profile == null || string.IsNullOrEmpty(profile.Title)) {
+            //    profile = new Profile() {
+            //        Title = $"{Program.GetCurrentAssemblyName()}",
+            //        LastUse = DateTime.Now.ToString(), LastCount = "0",
+            //        APIKey = "super secret value here",
+            //        PositionX = "200", PositionY = "200",
+            //    };
+            //    Serializer.Save(Path.Combine(Environment.CurrentDirectory, "profile.json"), profile);
+            //}
+            #endregion
         }
         catch (Exception) { }
     }
@@ -483,7 +499,7 @@ public partial class MainForm : Form
                     WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
                     FileName = $"{deferredScriptName}",
                     UseShellExecute = true,
-                    //WindowStyle = ProcessWindowStyle.Hidden,
+                    WindowStyle = ProcessWindowStyle.Hidden,
                     //CreateNoWindow = true,
                 };
                 Process.Start(startInfo);
@@ -506,8 +522,7 @@ public partial class MainForm : Form
     void CustomPopupMenuOnMenuItemClicked(object? sender, EventArgs e)
     {
         var cea = e as MenuItemClickedEventArgs;
-        //ShowMsgBoxInfo($"You selected \"{cea.ItemText}\"", "Testing");
-        Debug.WriteLine($"You selected \"{cea.ItemText}\"");
+        Debug.WriteLine($"[INFO] You selected \"{cea.ItemText}\"");
         if (cea.ItemText.Contains("info", StringComparison.OrdinalIgnoreCase) && listBox.SelectedItem != null && listBox.SelectedIndex >= 0)
         {
             var metaItem = listBox.Items[listBox.SelectedIndex] as ListBoxMetaItem;
@@ -532,15 +547,73 @@ public partial class MainForm : Form
                 }
             }, delegate() 
             {
-                Debug.WriteLine($"[INFO] Delete was canceled by user.");
+            ((ToolStripStatusLabel)statusStrip.Items[0]).Text = $"🔔 Delete was canceled by user.";
             });
         }
         else if (cea.ItemText.Contains("count", StringComparison.OrdinalIgnoreCase))
         {
             MessageForm.Show($"Last Count: {AppSettingsManager.LastCount}\r\nLast Used: {AppSettingsManager.LastUse}\r\nDebug Mode: {AppSettingsManager.DebugMode}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(10));
         }
-
+        else if (cea.ItemText.Contains("background", StringComparison.OrdinalIgnoreCase))
+        {
+            var selected = listBox.SelectedItem as ListBoxMetaItem;
+            if (selected == null) { return; }
+            ShowQuestionDialog($"Are you sure you want to change your desktop wallpaper?", "Replace?", delegate ()
+            {
+                try
+                {
+                    if (File.Exists(selected.Info.FullName))
+                    {
+                        _ = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, selected.Info.FullName, SPIF_UPDATEINIFILE);
+                        ((ToolStripStatusLabel)statusStrip.Items[0]).Text = $"🔔 Desktop wallpaper updated";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageForm.Show($"{selected.Info?.FullName} could not be used as wallpaper.\r\n{ex.Message}", $"Details", MessageLevel.Error, true, false, TimeSpan.FromSeconds(9));
+                }
+            }, delegate ()
+            {
+                ((ToolStripStatusLabel)statusStrip.Items[0]).Text = $"🔔 Desktop wallpaper change canceled by user";
+            });
+        }
     }
+
+    #region [Win32 API]
+    /// <summary>
+    /// SystemParametersInfo reads or sets information about numerous settings in Windows.
+    /// These include Windows's accessibility features as well as various settings for other things.
+    /// The exact behavior of the function depends on the flag passed as uAction.
+    /// All sizes and dimensions used by this function are measured in pixels.
+    /// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa
+    /// </summary>
+    /// <param name="uiAction">The exact behavior of the function depends on the SPI flag passed as uAction.</param>
+    /// <param name="uiParam">The purpose of this parameter varies with uAction. </param>
+    /// <param name="pvParam">The purpose of this parameter varies with uAction. In VB, if this is to be set as a string or to 0, the ByVal keyword must preceed it.</param>
+    /// <param name="fWinIni">Zero or more of the following flags specifying the change notification to take place. Generally, this can be set to 0 if the function merely queries information, but should be set to something if the function sets information.
+    ///   SPIF_SENDWININICHANGE = 0x02 (broadcast the change made by the function to all running programs)
+    ///   SPIF_UPDATEINIFILE    = 0x01 (save the change made by the function to the user profile)
+    /// </param>
+    /// <returns></returns>
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.I4)]
+    static extern Int32 SystemParametersInfo(UInt32 uiAction, UInt32 uiParam, String pvParam, UInt32 fWinIni);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.I4)]
+    static extern Int32 SystemParametersInfo(UInt32 uiAction, UInt32 uiParam, ref UInt32 pvParam, UInt32 fWinIni);
+
+    // Set the current desktop wallpaper bitmap. uiParam must be 0. pvParam is a String holding the filename of the bitmap file to use as the wallpaper. 
+    static UInt32 SPI_SETDESKWALLPAPER = 20;
+    // Determine if the warning beeper is on or off. uiParam must be 0. pvParam is a Long-type variable which receives 0 if the warning beeper is off, or a non-zero value if it is on. 
+    static UInt32 SPI_GETBEEP = 1;
+    // Determine if fast Alt-Tab task switching is enabled. uiParam must be 0. pvParam is a Long-type variable which receives 0 if fast task switching is not enabled, or a non-zero value if it is. 
+    static UInt32 SPI_GETFASTTASKSWITCH = 35;
+    // Determine whether font smoothing is enabled or not. uiParam must be 0. pvParam is a Long-type variable which receives 0 if font smoothing is not enabled, or a non-zero value if it is. 
+    static UInt32 SPI_GETFONTSMOOTHING = 74;
+    static UInt32 SPIF_UPDATEINIFILE = 0x1;
+    static UInt32 SPIF_SENDWININICHANGE = 0x2;
+    #endregion
 
     #region [Thread-safe Control Methods]
     /// <summary>
@@ -756,18 +829,6 @@ public partial class MainForm : Form
     /// Thread-safe method
     /// </summary>
     /// <param name="ctrl"><see cref="Control"/></param>
-    public void ScaleControl(Control ctrl, float ratio)
-    {
-        if (InvokeRequired)
-            BeginInvoke(new Action(() => ScaleControl(ctrl, ratio)));
-        else
-            ctrl.Scale(new System.Drawing.SizeF(ratio, ratio));
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    /// <param name="ctrl"><see cref="Control"/></param>
     public System.Drawing.Rectangle GetControlBounds(Control ctrl)
     {
         if (InvokeRequired)
@@ -819,7 +880,6 @@ public partial class MainForm : Form
             ctrl.Location = new Point(this.Width / 2 - (ctrl.Width / 2), this.Height / 2 - (ctrl.Height / 2));
         }
     }
-
 
     /// <summary>
     /// Thread-safe method
@@ -1269,29 +1329,6 @@ public partial class MainForm : Form
     /// <summary>
     /// Thread-safe method
     /// </summary>
-    /// <param name="nud"><see cref="NumericUpDown"/></param>
-    public void SetNumericUpDownValue(NumericUpDown nud, decimal value)
-    {
-        if (nud.InvokeRequired)
-            nud.Invoke(new Action(() => nud.Value = value));
-        else
-            nud.Value = value;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetTrackBarValue(TrackBar tb, int value)
-    {
-        if (tb.InvokeRequired)
-            tb.Invoke(new Action(() => tb.Value = value));
-        else
-            tb.Value = value;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
     public void SetToolStripStatusLabelText(ToolStripStatusLabel tssl, string text)
     {
         if (tssl.Owner.InvokeRequired)
@@ -1314,29 +1351,6 @@ public partial class MainForm : Form
             else
                 MessageBox.Show("The first item in the StatusStrip is not a ToolStripStatusLabel.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void AddRowToDataGridView(DataGridView dgv, params object[] values)
-    {
-        if (dgv.InvokeRequired)
-            dgv.Invoke(new Action(() => dgv.Rows.Add(values)));
-        else
-            dgv.Rows.Add(values);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    /// <param name="tc"><see cref="TabControl"/></param>
-    public void SelectTabControlTabByIndex(TabControl tc, int index)
-    {
-        if (tc.InvokeRequired)
-            tc.Invoke(new Action(() => tc.SelectedIndex = index));
-        else
-            tc.SelectedIndex = index;
     }
 
     /// <summary>
@@ -1380,28 +1394,6 @@ public partial class MainForm : Form
     /// <summary>
     /// Thread-safe method
     /// </summary>
-    public void SetDateTimePickerValue(DateTimePicker dtp, DateTime value)
-    {
-        if (dtp.InvokeRequired)
-            dtp.Invoke(new Action(() => dtp.Value = value));
-        else
-            dtp.Value = value;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetMaskedTextBoxMask(MaskedTextBox mtb, string mask)
-    {
-        if (mtb.InvokeRequired)
-            mtb.Invoke(new Action(() => mtb.Mask = mask));
-        else
-            mtb.Mask = mask;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
     public void SetToolStripMenuItemEnabled(ToolStripMenuItem mi, bool enabled)
     {
         if (mi.Owner.InvokeRequired)
@@ -1425,195 +1417,12 @@ public partial class MainForm : Form
     /// <summary>
     /// Thread-safe method
     /// </summary>
-    public void AddControlToFlowLayoutPanel(FlowLayoutPanel flp, Control control)
-    {
-        if (flp.InvokeRequired)
-            flp.Invoke(new Action(() => flp.Controls.Add(control)));
-        else
-            flp.Controls.Add(control);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetCheckedListBoxItemChecked(CheckedListBox clb, int index, bool isChecked)
-    {
-        if (clb.InvokeRequired)
-            clb.Invoke(new Action(() => clb.SetItemChecked(index, isChecked)));
-        else
-            clb.SetItemChecked(index, isChecked);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public string GetCheckedListBoxItemText(CheckedListBox clb, int index)
-    {
-        if (clb.InvokeRequired)
-            return (string)Invoke(new Func<string>(() => clb.GetItemText(index)));
-        else
-        {
-            try { return clb.GetItemText(index); }
-            catch { return string.Empty; }
-        }
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public bool GetCheckedListBoxItemChecked(CheckedListBox clb, int index)
-    {
-        if (clb.InvokeRequired)
-            return (bool)Invoke(new Func<bool>(() => clb.GetItemChecked(index)));
-        else
-        {
-            try { return clb.GetItemChecked(index); }
-            catch { return false; }
-        }
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
     public void SetSplitterDistance(Splitter spltr, int distance)
     {
         if (spltr.InvokeRequired)
             spltr.Invoke(new Action(() => spltr.SplitPosition = distance));
         else
             spltr.SplitPosition = distance;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetHScrollBarValue(HScrollBar hsb, int value)
-    {
-        if (hsb.InvokeRequired)
-            hsb.Invoke(new Action(() => hsb.Value = value));
-        else
-            hsb.Value = value;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetVScrollBarValue(VScrollBar vsb, int value)
-    {
-        if (vsb.InvokeRequired)
-            vsb.Invoke(new Action(() => vsb.Value = value));
-        else
-            vsb.Value = value;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void AddNodeToTreeView(TreeView tv, TreeNode node)
-    {
-        if (tv.InvokeRequired)
-            tv.Invoke(new Action(() => tv.Nodes.Add(node)));
-        else
-            tv.Nodes.Add(node);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void RemoveNodeFromTreeView(TreeView tv, TreeNode node)
-    {
-        if (tv.InvokeRequired)
-            tv.Invoke(new Action(() => tv.Nodes.Remove(node)));
-        else
-            tv.Nodes.Remove(node);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void ClearTreeViewNodes(TreeView tv)
-    {
-        if (tv.InvokeRequired)
-            tv.Invoke(new Action(() => tv.Nodes.Clear()));
-        else
-            tv.Nodes.Clear();
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void AddTabPageToTabControl(TabControl tc, TabPage tp)
-    {
-        if (tc.InvokeRequired)
-            tc.Invoke(new Action(() => tc.TabPages.Add(tp)));
-        else
-            tc.TabPages.Add(tp);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void RemoveTabPageFromTabControl(TabControl tc, TabPage tp)
-    {
-        if (tc.InvokeRequired)
-            tc.Invoke(new Action(() => tc.TabPages.Remove(tp)));
-        else
-            tc.TabPages.Remove(tp);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    /// <param name="lv"><see cref="ListView"/></param>
-    public void SetListViewItemText(ListView lv, int itemIndex, int subItemIndex, string text)
-    {
-        if (lv.InvokeRequired)
-            lv.Invoke(new Action(() => lv.Items[itemIndex].SubItems[subItemIndex].Text = text));
-        else
-            lv.Items[itemIndex].SubItems[subItemIndex].Text = text;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetDataGridViewCellValue(DataGridView dgv, int rowIndex, int columnIndex, object value)
-    {
-        if (dgv.InvokeRequired)
-            dgv.Invoke(new Action(() => dgv.Rows[rowIndex].Cells[columnIndex].Value = value));
-        else
-            dgv.Rows[rowIndex].Cells[columnIndex].Value = value;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void SetTabPageText(TabControl tc, int tabIndex, string text)
-    {
-        if (tc.InvokeRequired)
-            tc.Invoke(new Action(() => tc.TabPages[tabIndex].Text = text));
-        else
-            tc.TabPages[tabIndex].Text = text;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void AddControlToPanel(Panel pnl, Control control)
-    {
-        if (pnl.InvokeRequired)
-            pnl.Invoke(new Action(() => pnl.Controls.Add(control)));
-        else
-            pnl.Controls.Add(control);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    public void RemoveControlFromPanel(Panel pnl, Control control)
-    {
-        if (pnl.InvokeRequired)
-            pnl.Invoke(new Action(() => pnl.Controls.Remove(control)));
-        else
-            pnl.Controls.Remove(control);
     }
 
     /// <summary>
@@ -1642,30 +1451,6 @@ public partial class MainForm : Form
     /// <summary>
     /// Thread-safe method
     /// </summary>
-    /// <param name="tv"><see cref="TreeView"/></param>
-    public void ExpandAllTreeViewNodes(TreeView tv)
-    {
-        if (tv.InvokeRequired)
-            tv.Invoke(new Action(() => tv.ExpandAll()));
-        else
-            tv.ExpandAll();
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    /// <param name="tv"><see cref="TreeView"/></param>
-    public void CollapseAllTreeViewNodes(TreeView tv)
-    {
-        if (tv.InvokeRequired)
-            tv.Invoke(new Action(() => tv.CollapseAll()));
-        else
-            tv.CollapseAll();
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
     /// <param name="ni"><see cref="NotifyIcon"/></param>
     public void ShowNotifyIconBalloonTip(NotifyIcon ni, int timeout, string tipTitle, string tipText, ToolTipIcon icon)
     {
@@ -1681,62 +1466,13 @@ public partial class MainForm : Form
     /// <summary>
     /// Thread-safe method
     /// </summary>
-    /// <param name="mc"><see cref="MonthCalendar"/></param>
-    public void SetMonthCalendarSelectionRange(MonthCalendar mc, DateTime start, DateTime end)
-    {
-        if (mc.InvokeRequired)
-            mc.Invoke(new Action(() => mc.SelectionRange = new SelectionRange(start, end)));
-        else
-            mc.SelectionRange = new SelectionRange(start, end);
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    /// <param name="dtp"><see cref="DateTimePicker"/></param>
-    public void SetDateTimePickerFormat(DateTimePicker dtp, DateTimePickerFormat format)
-    {
-        if (dtp.InvokeRequired)
-            dtp.Invoke(new Action(() => dtp.Format = format));
-        else
-            dtp.Format = format;
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
-    /// <param name="dgv"><see cref="DataGridView"/></param>
-    public void EnableDataGridViewDoubleBuffering(DataGridView dgv, bool enable)
-    {
-        if (dgv.InvokeRequired)
-        {
-            dgv.Invoke(new Action(() => {
-                var dgvType = dgv.GetType();
-                var pi = dgvType.GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                pi?.SetValue(dgv, enable, null);
-            }));
-        }
-        else
-        {
-            try
-            {
-                var dgvType = dgv.GetType();
-                var pi = dgvType.GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                pi?.SetValue(dgv, enable, null);
-            }
-            catch (Exception) { }
-        }
-    }
-
-    /// <summary>
-    /// Thread-safe method
-    /// </summary>
     /// <param name="frm"><see cref="Form"/></param>
     public void EnableFormDoubleBuffering(Form frm, bool enable)
     {
         if (frm.InvokeRequired)
         {
-            frm.Invoke(new Action(() => {
+            frm.Invoke(new Action(() => 
+            {
                 var dgvType = frm.GetType();
                 var pi = dgvType.GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                 pi?.SetValue(frm, enable, null);
@@ -1744,13 +1480,9 @@ public partial class MainForm : Form
         }
         else
         {
-            try
-            {
-                var dgvType = frm.GetType();
-                var pi = dgvType.GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                pi?.SetValue(frm, enable, null);
-            }
-            catch (Exception) { }
+            var dgvType = frm.GetType();
+            var pi = dgvType.GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            pi?.SetValue(frm, enable, null);
         }
     }
     #endregion

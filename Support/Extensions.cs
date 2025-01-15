@@ -57,6 +57,9 @@ public static class Extensions
 
             // NOTE: We don't want to clean up the hIcon since accessing
             //       it could cause the System.ObjectDisposedException.
+            // TODO: Fire off a delayed thread to clean up the reference
+            //       after some time has elapsed - only if this method is
+            //       used repeatedly/often.
             //DestroyIcon(hIcon);
 
             return icon;

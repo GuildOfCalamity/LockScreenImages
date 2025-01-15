@@ -35,7 +35,7 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(30, 30, 30);
-            ClientSize = new Size(375, 170);
+            ClientSize = new Size(467, 170);
             ForeColor = Color.White;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             Name = "MessageForm";
