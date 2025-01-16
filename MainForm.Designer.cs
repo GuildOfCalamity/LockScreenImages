@@ -31,7 +31,7 @@ partial class MainForm
         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
         SuspendLayout();
         // 
-        // WindowsLockScreenImagesForm
+        // MainForm
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
@@ -39,7 +39,8 @@ partial class MainForm
         ClientSize = new Size(1147, 598);
         ForeColor = Color.White;
         Icon = (Icon)resources.GetObject("$this.Icon");
-        Name = "WindowsLockScreenImagesForm";
+        Name = "MainForm";
+        StartPosition = FormStartPosition.Manual;
         Text = "Lock Screen Images Viewer";
         ResumeLayout(false);
     }

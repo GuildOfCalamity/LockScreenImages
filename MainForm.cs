@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.IO.Compression;
@@ -18,6 +19,7 @@ namespace LockScreenImages;
 /// </remarks>
 public partial class MainForm : Form
 {
+    #region [Private Members]
     Image? appLogo;
     Image? imgBkgnd;
     Image? imgArrow;
@@ -32,7 +34,8 @@ public partial class MainForm : Form
     string copyFolderName = "ImageCopy";
     List<ListBoxMetaItem?> deferredRemovals = new();
     bool win7TitleBar = false;
-    static Profile? profile;
+    static AppSettings? profile;
+    #endregion
 
     public MainForm()
     {
@@ -41,9 +44,9 @@ public partial class MainForm : Form
         appLogo = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico"));
         imgBkgnd = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Background.png"));
         imgArrow = Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "IconOrb5.png"));
-        this.StartPosition = FormStartPosition.CenterScreen;
         this.Icon = appLogo.ToIcon(); // -or- this.Icon = new Icon(AppDomain.CurrentDomain.BaseDirectory +  @"\AppIcon.ico");
         this.Load += OnFormLoad;
+        this.Shown += OnFormShown;
         this.FormClosing += OnFormClosing;
         this.assets = GetContentDeliveryAssets();
         Application.ApplicationExit += OnApplicationExit;
@@ -292,6 +295,13 @@ public partial class MainForm : Form
         //statusStrip.Items[2].BackColor = Color.DarkGreen;
         //statusStrip.Items[3].BackColor = Color.DarkGreen;
 
+        // Load application config
+        profile = AppSettings.Load(true);
+        if (profile.FirstRun)
+            this.StartPosition = FormStartPosition.CenterScreen;
+        else
+            this.StartPosition = FormStartPosition.Manual;
+
         #region [Acrylic background]
         // This will determine the glass accent color (does not support alpha).
         this.BackColor = Color.FromArgb(20, 20, 30);
@@ -301,7 +311,7 @@ public partial class MainForm : Form
             Debug.WriteLine($"[INFO] OSVersion.Major={Environment.OSVersion.Version.Major}");
             if (Environment.OSVersion.Version.Major > 6)
             {
-                if (AppSettingsManager.GlassWindow)
+                if (profile.GlassWindow)
                     DwmHelper.Windows10EnableBlurBehind(this.Handle);
                 else
                     DwmHelper.Windows10EnableTransparentGradient(this.Handle, alpha: 0xAF);
@@ -428,46 +438,69 @@ public partial class MainForm : Form
                 File.Delete(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{deferredScriptName}"));
 
             #region [Application Settings]
-            if (this.WindowState == FormWindowState.Normal)
+            if (profile != null)
             {
-                AppSettingsManager.WindowLeft = this.Left;
-                AppSettingsManager.WindowTop = this.Top;
-                AppSettingsManager.WindowHeight = this.Height;
-                AppSettingsManager.WindowWidth = this.Width;
-                AppSettingsManager.StartupPosition = $"{this.StartPosition}";
+                profile.WindowState = (int)this.WindowState;
+                if (profile.LastUse == null || profile.LastUse == DateTime.MinValue)
+                    Debug.WriteLine($"[INFO] {Program.GetCurrentAssemblyName()} has never been run.");
+                else
+                    Debug.WriteLine($"[INFO] {Program.GetCurrentAssemblyName()} was last run on {profile.LastUse}");
+
+                Debug.WriteLine($"[INFO] Last asset count was {profile.LastCount}.");
+
+                // Update settings with examples if it's new.
+                if (string.IsNullOrEmpty(profile.Username))
+                {
+                    profile.Username = "SomeUser";
+                    profile.Password = "SomePassword";     // This will be encrypted during save
+                    profile.ApiKey = "ABC-12345-API-67890";
+                    profile.ApiSecret = "secretApiKey123"; // This will also be encrypted
+                    profile.Save();
+                }
             }
-            AppSettingsManager.WindowState = (int)this.WindowState;
-            if (AppSettingsManager.LastUse == DateTime.MinValue)
-                Debug.WriteLine($"[INFO] {Program.GetCurrentAssemblyName()} has never been run.");
-            else
-                Debug.WriteLine($"[INFO] {Program.GetCurrentAssemblyName()} was last run on {AppSettingsManager.LastUse}");
-
-            Debug.WriteLine($"[INFO] Last asset count was {AppSettingsManager.LastCount}.");
-            #endregion
-
-            #region [Profile Encryption Test]
-            //profile = new Serializer().Load(Path.Combine(Environment.CurrentDirectory, "profile.json"));
-            //if (profile == null || string.IsNullOrEmpty(profile.Title)) {
-            //    profile = new Profile() {
-            //        Title = $"{Program.GetCurrentAssemblyName()}",
-            //        LastUse = DateTime.Now.ToString(), LastCount = "0",
-            //        APIKey = "super secret value here",
-            //        PositionX = "200", PositionY = "200",
-            //    };
-            //    Serializer.Save(Path.Combine(Environment.CurrentDirectory, "profile.json"), profile);
-            //}
             #endregion
         }
         catch (Exception) { }
+    }
+
+    void OnFormShown(object? sender, EventArgs e)
+    {
+        if (profile != null && profile.FirstRun)
+        {
+            profile.FirstRun = false;
+            string greeting = 
+               $"Welcome to the {Program.GetCurrentAssemblyName()} application!\r\n\r\n" +
+                "Select an item from the list on the left to load it into the\r\n" +
+                "picture control on the right.  You can right-click on the\r\n" +
+                "image to see more options.  If you wish to see this dialog\r\n" + 
+                "again, set \"FirstRun\" to true in the profile config.";
+            MessageForm.Show(greeting, "Welcome", MessageLevel.Info, true, false, TimeSpan.FromSeconds(10));
+        }
+        else if (profile != null && this.WindowState == FormWindowState.Normal)
+        { 
+            // Restore user's last position
+            this.Top = profile.WindowTop;
+            this.Left = profile.WindowLeft;
+            this.Height = profile.WindowHeight;
+            this.Width = profile.WindowWidth;
+        }
     }
 
     void OnFormClosing(object? sender, FormClosingEventArgs e)
     {
         Debug.WriteLine($"[INFO] FormClosing {DateTime.Now.ToString("hh:mm:ss.fff tt")}");
 
-        AppSettingsManager.LastCount = this.assets.Length;
-        AppSettingsManager.LastUse = DateTime.Now;
-        AppSettingsManager.Save(AppSettingsManager.Settings, AppSettingsManager.Location, AppSettingsManager.Version);
+        profile.LastCount = this.assets.Length;
+        profile.LastUse = DateTime.Now;
+        profile.Version = $"{Program.GetCurrentAssemblyVersion()}";
+        if (this.WindowState == FormWindowState.Normal)
+        {
+            profile.WindowLeft = this.Left;
+            profile.WindowTop = this.Top;
+            profile.WindowHeight = this.Height;
+            profile.WindowWidth = this.Width;
+        }
+        profile.Save();
 
         if (deferredRemovals.Count > 0)
         {
@@ -552,7 +585,7 @@ public partial class MainForm : Form
         }
         else if (cea.ItemText.Contains("count", StringComparison.OrdinalIgnoreCase))
         {
-            MessageForm.Show($"Last Count: {AppSettingsManager.LastCount}\r\nLast Used: {AppSettingsManager.LastUse}\r\nDebug Mode: {AppSettingsManager.DebugMode}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(10));
+            MessageForm.Show($"Last Count: {profile.LastCount}\r\nLast Used: {profile.LastUse}\r\nDebug Mode: {profile.DebugMode}", $"Details", MessageLevel.Info, true, false, TimeSpan.FromSeconds(10));
         }
         else if (cea.ItemText.Contains("background", StringComparison.OrdinalIgnoreCase))
         {
