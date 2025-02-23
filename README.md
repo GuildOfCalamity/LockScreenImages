@@ -4,6 +4,8 @@
 
 ![Example Picture](./Assets/Screenshot.png)
 
+![Custom Dialog](./Assets/Screenshot2.png)
+
 **Dependencies**
 
 | Assembly | Version |
