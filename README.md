@@ -1,4 +1,4 @@
-# Lock Screen Images Viewer
+# Lock Screen Images Viewer (WinForms)
 
 > This is a reworked version of the [keenthinker](https://github.com/keenthinker/WindowsLockScreenImages) version.
 
